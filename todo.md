@@ -15,11 +15,11 @@ multidimensional.
 
 ## Ecuaciones
 
--1. P = {p1, p2, p3, ...,pn} ----> Conjunto de n-congresistas
--2. C(n,q) = (n q) = n! / (q! * (n - q)!) ----> Convinaciones posibles para formar coaliciones de size q
--3. G = {g1, g2, g3, ..., gq} ----> Coalicion Candidata
--4. Z(G) = Sum(i=1 -> q-1) Sum(j= i+1 -> q) d(gi, gj) ------> funcion obj
--5. G* = arg_G min Z(G)  --------> Resultado optimo (el minimo o mejor coalicion)
+- 1. P = {p1, p2, p3, ...,pn} ----> Conjunto de n-congresistas
+- 2. C(n,q) = (n q) = n! / (q! * (n - q)!) ----> Convinaciones posibles para formar coaliciones de size q
+- 3. G = {g1, g2, g3, ..., gq} ----> Coalicion Candidata
+- 4. Z(G) = Sum(i=1 -> q-1) Sum(j= i+1 -> q) d(gi, gj) ------> funcion obj
+- 5. G* = arg_G min Z(G)  --------> Resultado optimo (el minimo o mejor coalicion)
 
 ## Algoritmo
 
