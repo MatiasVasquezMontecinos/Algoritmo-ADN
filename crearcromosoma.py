@@ -11,3 +11,14 @@ def generar_poblacion_inicial(pob_max, n_diputados, quorum_q):
         poblacion.append(individuo)
 
     return np.array(poblacion)
+
+
+def EvalCromo(Individuos, fun_obj):
+    return 0 # la funcion
+
+def SortCromo(Individuos, fun_obj):
+    fitness = [(i, EvalCromo(i)) for i in Individuos]
+    fitness.sort(key=lambda x: x[1], reverse=True)
+    return np.array([i for i, fit in fitness])
+
+
