@@ -23,3 +23,4 @@
 - Hay que saber alguna funcion?
 - Se debe usar un .CSV?
 - Se debe elaborar un Parser?
+- Sera buena idea trabajar con binarios?
