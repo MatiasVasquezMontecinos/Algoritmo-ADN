@@ -74,9 +74,4 @@ def nueva_generacion(poblacion, D, quorum_q, prob_mutacion=0.1):
     return SortCromo(np.array(nueva_pob), D)
 
 
-def algoritmo_genetico(n_diputados, quorum_q, D, pob_max=15, generaciones=100):
-    poblacion = generar_poblacion_inicial(pob_max, n_diputados, quorum_q)
-    for _ in range(generaciones):
-        poblacion = nueva_generacion(poblacion, D, quorum_q)
-    mejor = poblacion[0]
-    return mejor, EvalCromo(mejor, D)
+
