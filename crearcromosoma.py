@@ -1,5 +1,8 @@
 import numpy as np
 import random
+import matplotlib.pyplot as plt
+from scipy.spatial import ConvexHull
+
 
 
 def calcular_matriz_distancias(posiciones):
@@ -73,5 +76,24 @@ def nueva_generacion(poblacion, D, quorum_q, prob_mutacion=0.1):
 
     return SortCromo(np.array(nueva_pob), D)
 
+
+
+# -------- Implementacion del algoritmo determinista Gc del paper -------- #
+
+def encontrar_Gc(posiciones, quorum_q):
+    n = posiciones.shape[0]
+    mejor_z = float('inf')
+    mejor_G = None
+
+    for i in range(n):
+        distancias = np.linalg.norm(posiciones - posiciones[i], axis=1)
+        vecinos = np.argsort(distancias)[1:quorum_q]  # q-1 más cercanos
+        Gi = np.append(i, vecinos)
+        submat = calcular_matriz_distancias(posiciones[Gi])
+        z = np.sum(np.triu(submat, 1))
+        if z < mejor_z:
+            mejor_z = z
+            mejor_G = Gi
+    return mejor_G, mejor_z
 
 

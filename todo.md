@@ -1,5 +1,5 @@
 ## Contexto
-
+ 
 El objetivo de esta prueba práctica es diseñar e implementar un algoritmo genético
 capaz de resolver el problema de la coalición ganadora mínima (MWC), que consiste en
 identificar un subconjunto de diputados cuya suma de distancias políticas a pares sea
