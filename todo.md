@@ -1,5 +1,5 @@
 ## Contexto
- 
+
 El objetivo de esta prueba práctica es diseñar e implementar un algoritmo genético
 capaz de resolver el problema de la coalición ganadora mínima (MWC), que consiste en
 identificar un subconjunto de diputados cuya suma de distancias políticas a pares sea
@@ -10,7 +10,7 @@ donde se detallan las ecuaciones (1)-(5) y el esquema de evaluación mediante di
 en el espacio político.
 
 Adicionalmente, el algoritmo deberá identificar todos los miembros de la MWC, así
-como los vértices del polígono convexo que la contiene en el espacio político 
+como los vértices del polígono convexo que la contiene en el espacio político
 multidimensional.
 
 ## Ecuaciones
@@ -23,7 +23,8 @@ multidimensional.
 
 ## Algoritmo
 
-- [x] Generar la poblacion inicial de tamaño IMPAR(Tam. poblacion) respetando las restricciones
+- [X] Generar la poblacion inicial de tamaño IMPAR(Tam. poblacion) respetando las restricciones
+
 - [] Evaluar cada cromosoma de acuerdo a la Funcion objetivo
 - [] Ordenar los cromosomas de acuerdo a la Funcion objetivo (Fitness)
 - [] Seleccionar dos "Padres"
@@ -36,14 +37,32 @@ multidimensional.
 ## Elementos visules
 
 - [] Crear una tabla con los resultados
-- [] Explicaciones 
+- [] Explicaciones
 - [] Dibujo de la grafica
-
-## 
 
 ## Dudas
 
-- [x] Hay que saber alguna funcion? Si buscar en lo del profe nacho
-- Se debe usar un .CSV?
-- Se debe elaborar un Parser?
-- Sera buena idea trabajar con binarios?
+- [X] Hay que saber alguna funcion?
+
+- Si,  esta referenciadas en paper del profesor ignacio lincolao
+
+- [X] ¿Se debe usar un .CSV?
+
+- Si, se debe usar el .CSV ya que apartir de ahi se toma los puntos 
+
+- [X] Se debe elaborar un Parser?
+
+- No es necesario ya que se puede trabajar con la funcion de Distancia entre puntos es decir  D(x,y) = sqrt((x2-x1)^2 + (y2-y1)^2) de manera matematica.
+
+- [X] El grafico de punto como debe ser,¿Igual al Paper o diferente?
+
+-  Si, debe ser como el grafico que esta al final del paper
+
+- [X] ¿Como los resultados obtenidos deben basarse en los del paper?
+
+- Franco le sabe
+
+- [ ] ¿Que explicacion deberiamos llegar?
+
+- 
+
