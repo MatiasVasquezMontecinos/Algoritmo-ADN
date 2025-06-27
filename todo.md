@@ -62,7 +62,15 @@ multidimensional.
 
 - Franco le sabe
 
-- [ ] ¿Que explicacion deberiamos llegar?
+- [] ¿Que explicacion deberiamos llegar?
 
 - 
+
+## Objetivos
+
+- [] Si de aqui al sabado el codigo no es mas rapido o mas optimo, se recomienda cambiar de lenguaje
+
+- [] Ver si se puede usar la libreria de CuPy (Para RTX)
+
+
 
