@@ -1,13 +1,18 @@
 import pandas as pd
-import cupy as cp
 import random
+import numpy as np
+import time
+import matplotlib.pyplot as plt
+from scipy.spatial import ConvexHull
 
+random.seed(42)
+np.random.seed(42)
 
 def calcular_matriz_distancias(posiciones):
-    return cp.linalg.norm(posiciones[:, None] - posiciones[None, :], axis=2)
+    return np.linalg.norm(posiciones[:, None] - posiciones[None, :], axis=2)
 
 def generar_poblacion_inicial(pob_max, n_diputados, quorum_q):
-    poblacion = cp.zeros((pob_max, n_diputados), dtype=cp.int32)
+    poblacion = np.zeros((pob_max, n_diputados), dtype=np.int32)
     for i in range(pob_max):
         indices = random.sample(range(n_diputados), quorum_q)
         poblacion[i, indices] = 1
@@ -15,80 +20,269 @@ def generar_poblacion_inicial(pob_max, n_diputados, quorum_q):
 
 def EvalCromo_batch(poblacion, D):
     N = poblacion.shape[0]
-    Z = cp.zeros(N, dtype=cp.float32)
-
+    Z = np.zeros(N, dtype=np.float32)
     for i in range(N):
-        idx = cp.where(poblacion[i] == 1)[0]
+        idx = np.where(poblacion[i] == 1)[0]
         if len(idx) < 2:
             continue
         submat = D[idx[:, None], idx]
-        Z[i] = cp.sum(cp.triu(submat, k=1))
+        Z[i] = np.sum(np.triu(submat, k=1))
     return Z
 
-def SortCromo(poblacion, D):
-    fitness = EvalCromo_batch(poblacion, D)
-    idx_sorted = cp.argsort(fitness)
-    return poblacion[idx_sorted]
+def cruzamiento_consenso(padre1, padre2):
+    mask_iguales = padre1 == padre2
+    hijo = np.copy(padre1)
+    dif_pos = np.where(mask_iguales == 0)[0]
+    for pos in dif_pos:
+        hijo[pos] = padre1[pos] if random.random() < 0.5 else padre2[pos]
+    return hijo
 
-def selectDad(poblacion):
-    idx = random.sample(range(len(poblacion)), 2)
-    return poblacion[idx[0]], poblacion[idx[1]]
-
-def cruzamiento(Dad1, Dad2):
-    punto = random.randint(1, len(Dad1) - 2)
-    Son1 = cp.concatenate((Dad1[:punto], Dad2[punto:]))
-    Son2 = cp.concatenate((Dad2[:punto], Dad1[punto:]))
-    return Son1, Son2
-
-def Mutacion(individuo, prob_mut=0.1):
+def mutacion_adaptativa(individuo, posiciones, quorum_q, prob_mut=0.1):
     if random.random() < prob_mut:
-        unos = cp.where(individuo == 1)[0]
-        ceros = cp.where(individuo == 0)[0]
-        if len(unos) > 0 and len(ceros) > 0:
-            i = random.choice(unos.tolist())
-            j = random.choice(ceros.tolist())
-            individuo[i], individuo[j] = individuo[j], individuo[i]
+        idx_presentes = np.where(individuo == 1)[0]
+        idx_ausentes = np.where(individuo == 0)[0]
+        centro = np.mean(posiciones[idx_presentes], axis=0)
+        dist_presentes = np.linalg.norm(posiciones[idx_presentes] - centro, axis=1)
+        idx_peor = idx_presentes[np.argmax(dist_presentes)]
+        dist_ausentes = np.linalg.norm(posiciones[idx_ausentes] - centro, axis=1)
+        idx_mejor = idx_ausentes[np.argmin(dist_ausentes)]
+        individuo[idx_peor] = 0
+        individuo[idx_mejor] = 1
     return individuo
 
-def verificar(individuo, quorum_q):
-    return cp.sum(individuo) == quorum_q
+def seleccionar_padres_torneo_fuerte(poblacion, fitness, k=3):
+    topk = int(len(poblacion) * 0.2)
+    mejores_idx = (np.argsort(fitness))[:topk]
+    seleccionados = []
+    for _ in range(2):
+        candidatos = random.sample(mejores_idx.tolist(), k)
+        mejor = candidatos[int(np.argmin(fitness[candidatos]))]
+        seleccionados.append(poblacion[mejor])
+    return seleccionados
 
-def nueva_generacion(poblacion, D, quorum_q, prob_mutacion=0.1):
+def nueva_generacion(poblacion, D, posiciones, quorum_q, prob_mut=0.1, elitismo=True):
+    fitness = EvalCromo_batch(poblacion, D)
+    elite = poblacion[np.argmin(fitness)]
+    
     nueva_pob = []
+    # élite reforzada
+    nueva_pob.append(np.copy(elite))
+    nueva_pob.append(np.copy(elite))
+    
     while len(nueva_pob) < len(poblacion):
-        padre1, padre2 = selectDad(poblacion)
-        hijo1, hijo2 = cruzamiento(padre1, padre2)
-        hijo1 = Mutacion(hijo1, prob_mutacion)
-        hijo2 = Mutacion(hijo2, prob_mutacion)
-
-        if verificar(hijo1, quorum_q):
-            nueva_pob.append(hijo1)
-        if len(nueva_pob) < len(poblacion) and verificar(hijo2, quorum_q):
-            nueva_pob.append(hijo2)
-
-    nueva_pob = cp.stack(nueva_pob)
-    return SortCromo(nueva_pob, D)
-
+        padre1, padre2 = seleccionar_padres_torneo_fuerte(poblacion, fitness)
+        hijo = cruzamiento_consenso(padre1, padre2)
+        hijo = mutacion_adaptativa(hijo, posiciones, quorum_q, prob_mut=prob_mut)
+        if np.sum(hijo) == quorum_q:
+            nueva_pob.append(hijo)
+    nueva_pob = np.stack(nueva_pob)
+    return nueva_pob
 
 def encontrar_Gc(posiciones, quorum_q):
     n = posiciones.shape[0]
-    mejor_z = cp.inf
+    mejor_z = np.inf
     mejor_G = None
-
     for i in range(n):
-        distancias = cp.linalg.norm(posiciones - posiciones[i], axis=1)
-        vecinos = cp.argsort(distancias)[1:quorum_q]  
-        Gi = cp.append(i, vecinos)
+        distancias = np.linalg.norm(posiciones - posiciones[i], axis=1)
+        vecinos = np.argsort(distancias)[1:quorum_q]
+        Gi = np.append(i, vecinos)
         submat = calcular_matriz_distancias(posiciones[Gi])
-        z = cp.sum(cp.triu(submat, 1))
+        z = np.sum(np.triu(submat, 1))
         if z < mejor_z:
             mejor_z = z
             mejor_G = Gi
-
     return mejor_G, mejor_z
 
+def evolucionar_generaciones(poblacion, D, posiciones, quorum_q, max_gen=10000):
+    mejor_fitness = np.inf
+    mejor_individuo = None
+    
+    for gen in range(max_gen):
+        poblacion = nueva_generacion(poblacion, D, posiciones, quorum_q, prob_mut=0.15, elitismo=True)
+        fitness = EvalCromo_batch(poblacion, D)
+        f_min = np.min(fitness)
+        if f_min < mejor_fitness:
+            mejor_fitness = f_min
+            idx = np.argmin(fitness)
+            mejor_individuo = poblacion[idx]
+        
+        if gen % 1 == 0:
+            print(f"Gen {gen}: Z = {float(mejor_fitness):.2f}")
+        
+    return mejor_individuo, mejor_fitness
+
+def ejecutar_experimento(repeticiones=10, quorum_q=216, pob_max=30, max_gen=1500):
+    df = pd.read_csv("H094_members.csv")
+    df = df[(df["congress"] == 94) & (df["chamber"] == "House")]
+    columnas_utiles = ['nominate_dim1', 'nominate_dim2']
+    df_numerico = df[columnas_utiles].dropna()
+    datos_np = np.asarray(df_numerico.values.astype(np.float32))
+    n_diputados = datos_np.shape[0]
+
+    print("🔧 Calculando matriz de distancias...")
+    D = calcular_matriz_distancias(datos_np)
+
+    print("🔎 Buscando heurística Gc...")
+    mejor_G, mejor_z = encontrar_Gc(datos_np, quorum_q)
+    print("Mejor heurístico Gc Z =", mejor_z)
+
+    fitness_finales = []
+    tiempos = []
+    iteraciones = []
+
+    for rep in range(repeticiones):
+        print(f"\n🔁 Repetición {rep + 1}/{repeticiones}")
+        start_time = time.time()
+
+        poblacion = generar_poblacion_inicial(pob_max, n_diputados, quorum_q)
+
+        individuo_gc = np.zeros(n_diputados, dtype=np.int32)
+        individuo_gc[mejor_G] = 1
+        poblacion = np.vstack([poblacion, individuo_gc])
+        for _ in range(3):
+            mutado = mutacion_adaptativa(individuo_gc.copy(), datos_np, quorum_q, prob_mut=0.25)
+            if np.sum(mutado) == quorum_q:
+                poblacion = np.vstack([poblacion, mutado])
+        if poblacion.shape[0] > pob_max:
+            poblacion = poblacion[:pob_max]
+
+        mejor_fitness = np.inf
+        iteracion_encontrado = 0
+        for gen in range(max_gen):
+            poblacion = nueva_generacion(poblacion, D, datos_np, quorum_q, prob_mut=0.15)
+            fitness = EvalCromo_batch(poblacion, D)
+            f_min = np.min(fitness)
+            if f_min < mejor_fitness:
+                mejor_fitness = f_min
+                iteracion_encontrado = gen
+
+        tiempo_total = time.time() - start_time
+        fitness_finales.append(mejor_fitness)
+        tiempos.append(tiempo_total)
+        iteraciones.append(iteracion_encontrado)
+
+    # Resultados agregados
+    fitness_finales = np.array(fitness_finales)
+    tiempos = np.array(tiempos)
+    iteraciones = np.array(iteraciones)
+
+    precision_array = 100 * mejor_z / fitness_finales
+    precision_mean = np.mean(precision_array)
+    precision_std = np.std(precision_array)
+
+    fitness_mean = np.mean(fitness_finales)
+    fitness_std = np.std(fitness_finales)
+
+    iter_mean = np.mean(iteraciones)
+    iter_std = np.std(iteraciones)
+
+    tiempo_mean = np.mean(tiempos)
+    tiempo_std = np.std(tiempos)
+
+    print("\n=== 📈 Resultados Finales ===")
+    print(f"Resultado esperado (Z):")
+    print(f"  ➤ Media: {fitness_mean:.5f}")
+    print(f"  ➤ Desviación estándar: {fitness_std:.5f}")
+
+    print(f"\nPrecisión (%):")
+    print(f"  ➤ Media: {precision_mean:.2f} %")
+    print(f"  ➤ Desviación estándar: {precision_std:.2f} %")
+
+    print(f"\nIteraciones hasta el mejor fitness:")
+    print(f"  ➤ Media: {iter_mean:.2f}")
+    print(f"  ➤ Desviación estándar: {iter_std:.2f}")
+
+    print(f"\nTiempo de ejecución por repetición (segundos):")
+    print(f"  ➤ Media: {tiempo_mean:.5f}")
+    print(f"  ➤ Desviación estándar: {tiempo_std:.5f}")
 
 
+if __name__ == "__main__":
+    start_time = time.time()
+    quorum_q = 216
+    pob_max = 30
+    
+    df = pd.read_csv("H094_members.csv")
+    df = df[(df["congress"] == 94) & (df["chamber"] == "House")]
+    columnas_utiles = ['nominate_dim1', 'nominate_dim2']
+    df_numerico = df[columnas_utiles].dropna()
+    datos_np = np.asarray(df_numerico.values.astype(np.float32))
+    n_diputados = datos_np.shape[0]
+    
+    print("\n🔧 Calculando matriz de distancias...")
+    D = calcular_matriz_distancias(datos_np)
+    
+    print("🔎 Buscando heurística Gc...")
+    mejor_G, mejor_z = encontrar_Gc(datos_np, quorum_q)
+    print("Mejor subconjunto Gc:", mejor_G)
+    print("Costo total z:", float(mejor_z))
+    
+    print("🧬 Generando población inicial...")
+    poblacion = generar_poblacion_inicial(pob_max, n_diputados, quorum_q)
+    
 
-df = pd.read_csv("Tabla.csv")
-datos_cp = cp.asarray(df.values)
+    individuo_gc = np.zeros(n_diputados, dtype=np.int32)
+    individuo_gc[mejor_G] = 1
+    poblacion = np.vstack([poblacion, individuo_gc])
+    
+
+    for _ in range(3):
+        mutado = mutacion_adaptativa(individuo_gc.copy(), datos_np, quorum_q, prob_mut=0.25)
+        if np.sum(mutado) == quorum_q:
+            poblacion = np.vstack([poblacion, mutado])
+    if poblacion.shape[0] > pob_max:
+        poblacion = poblacion[:pob_max]
+    
+    print("📊 Fitness inicial:", (EvalCromo_batch(poblacion, D)))
+    
+    mejor_individuo, mejor_fitness = evolucionar_generaciones(
+        poblacion, D, datos_np, quorum_q, max_gen=10000
+    )
+    indices_mejor = np.where(mejor_individuo == 1)[0]
+    
+    print("🎯 Mejor individuo final:", (indices_mejor))
+    print("🎯 Mejor fitness:", float(mejor_fitness))
+    print(f"⏱ Tiempo total: {time.time() - start_time:.2f} segundos")
+
+    ejecutar_experimento(repeticiones=4)
+    
+    df_filtrado = df[columnas_utiles + ["party_code"]].dropna().copy()
+    df_filtrado["Pertenece"] = mejor_individuo.astype(bool)
+
+    
+    colores_partido = {100: "blue", 200: "red"}
+    formas_cgm = {True: "o", False: "x"}
+
+    
+    plt.figure(figsize=(10, 8))
+    plt.style.use("ggplot")
+
+    
+    for partido in df_filtrado["party_code"].unique():
+        for pertenece in [True, False]:
+            subset = df_filtrado[(df_filtrado["party_code"] == partido) & (df_filtrado["Pertenece"] == pertenece)]
+            plt.scatter(
+                subset["nominate_dim1"],
+                subset["nominate_dim2"],
+                c=colores_partido[partido],
+                label=f"{partido} - {'Pertenece' if pertenece else 'No pertenece'}",
+                alpha=0.7,
+                marker=formas_cgm[pertenece],
+                edgecolor="black" if pertenece else "none"
+            )
+
+    
+    puntos_cgm = datos_np[mejor_individuo.astype(bool)]
+    if len(puntos_cgm) >= 3:
+        hull = ConvexHull(puntos_cgm)
+        for simplex in hull.simplices:
+            plt.plot(puntos_cgm[simplex, 0], puntos_cgm[simplex, 1], 'purple')
+        plt.fill(puntos_cgm[hull.vertices, 0], puntos_cgm[hull.vertices, 1], 'purple', alpha=0.2)
+
+    
+    plt.xlabel("Dimensión 1")
+    plt.ylabel("Dimensión 2")
+    plt.title("Visualización de CGM y Partidos")
+    plt.legend()
+    plt.grid(True)
+    plt.show()
