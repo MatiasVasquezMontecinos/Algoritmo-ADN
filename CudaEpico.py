@@ -124,16 +124,30 @@ def nueva_generacion(poblacion, D, posiciones, quorum_q, prob_mut=0.1, elitismo=
     return nueva_pob
 
 def encontrar_Gc(posiciones, quorum_q):
+    # guarda el número total de diputados, es decir el número de filas de la matriz posiciones.
     n = posiciones.shape[0]
+    # Inicializa mejor_z con infinito, de modo que cualquier solución encontrada será mejor que esto en la primera iteración.
     mejor_z = np.inf
+    # Inicializa mejor_G como None. Aquí se guardará el conjunto óptimo provisional que vaya encontrando.
     mejor_G = None
+    # Empieza un bucle que recorre cada diputado i como posible centro del grupo inicial.
     for i in range(n):
+        #  Calcula un vector de distancias euclidianas entre el diputado i y todos los demás diputados.
         distancias = np.linalg.norm(posiciones - posiciones[i], axis=1)
+        # Ordena las distancias de menor a mayor con argsort, exceptuando al primero ([1:quorum_q]) porque el primero es el propio i.
         vecinos = np.argsort(distancias)[1:quorum_q]
+        # Construye el grupo Gi formado por el diputado central i más sus vecinos más cercanos.
+        # En total quorum_q diputados.
         Gi = np.append(i, vecinos)
+        #  Calcula la submatriz de distancias interna de este grupo Gi
+        # Es decir, la matriz de distancias completa solo para esos diputados seleccionados.
         submat = calcular_matriz_distancias(posiciones[Gi])
+        #  Suma la parte triangular superior de la submatriz de distancias, quitando la diagonal y sin duplicar las distancias (por simetría).
+        # Esto equivale a calcular la suma de todas las distancias entre pares en el grupo.
         z = np.sum(np.triu(submat, 1))
+        # Si la suma de distancias del grupo actual z es menor que la mejor conocida hasta ahora mejor_z, la actualiza.
         if z < mejor_z:
+            #  Guarda este Gi como el mejor grupo encontrado hasta ahora, y su coste total z como el mejor coste.
             mejor_z = z
             mejor_G = Gi
     return mejor_G, mejor_z
