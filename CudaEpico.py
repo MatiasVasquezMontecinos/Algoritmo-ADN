@@ -12,21 +12,30 @@ def calcular_matriz_distancias(posiciones):
     return np.linalg.norm(posiciones[:, None] - posiciones[None, :], axis=2)
 
 def generar_poblacion_inicial(pob_max, n_diputados, quorum_q):
+    # genera una matriz de la cantidad de poblacion x el numero de diputados
     poblacion = np.zeros((pob_max, n_diputados), dtype=np.int32)
     for i in range(pob_max):
+        #  de la poblacion seleccionada solo se toma elementos aleatorios
         indices = random.sample(range(n_diputados), quorum_q)
+        # "Activa" los diputados del cromosoma
         poblacion[i, indices] = 1
     return poblacion
 
 def EvalCromo_batch(poblacion, D):
+    # Toma el tamaño de la poblacion 
     N = poblacion.shape[0]
+    # Es un vector el cual va almacenar el fittness de cada cromosoma
     Z = np.zeros(N, dtype=np.float32)
     for i in range(N):
+        # toma las posiciones de los diputados "activos"
         idx = np.where(poblacion[i] == 1)[0]
         if len(idx) < 2:
             continue
+        # crea una submatriz entre los diputados elegidos
         submat = D[idx[:, None], idx]
+        # toma solamente la parte superior triangular sin contar la diagonal ni duplicar las distancias
         Z[i] = np.sum(np.triu(submat, k=1))
+    # Guada el fitness
     return Z
 
 def cruzamiento_consenso(padre1, padre2):
